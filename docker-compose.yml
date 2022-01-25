@@ -1,0 +1,53 @@
+version: '3'
+
+services:
+  app:
+    container_name: app
+    user: "${USER_ID:-1000}:${GROUP_ID:-1000}"
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    environment:
+      FPM_USER: www
+      FPM_GROUP: www
+    volumes:
+      - .:/var/www
+      - ./docker/php/local.ini:/usr/local/etc/php/conf.d/local.ini
+    networks:
+      - app-network
+
+  nginx:
+    container_name: nginx
+    image: nginx:1.18.0
+    restart: unless-stopped
+    ports:
+      - 80:80
+    volumes:
+      - ./:/var/www
+      - ./docker/nginx/conf.d/:/etc/nginx/conf.d/
+    networks:
+      - app-network
+
+  mysql:
+    image: mysql:8.0.26
+    container_name: mysql
+    restart: always
+    ports:
+      - 33061:3306
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - dbdata:/var/lib/mysql
+      - ./docker/mysql/my.cnf:/etc/mysql/my.cnf
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  dbdata:
