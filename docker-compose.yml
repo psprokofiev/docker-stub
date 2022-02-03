@@ -1,8 +1,8 @@
-version: '3'
+version: '3.5'
 
 services:
-  app:
-    container_name: app
+  app: &laravel-app-template
+    container_name: laravel-app
     user: "${USER_ID:-1000}:${GROUP_ID:-1000}"
     build:
       context: .
@@ -17,9 +17,9 @@ services:
       - app-network
 
   nginx:
-    container_name: nginx
+    container_name: laravel-nginx
     image: nginx:1.18.0
-    restart: unless-stopped
+    restart: always
     ports:
       - 80:80
     volumes:
@@ -30,10 +30,10 @@ services:
 
   mysql:
     image: mysql:8.0.26
-    container_name: mysql
+    container_name: laravel-mysql
     restart: always
     ports:
-      - 33061:3306
+      - 33062:3306
     environment:
       MYSQL_DATABASE: ${DB_DATABASE}
       MYSQL_USER: ${DB_USERNAME}
@@ -45,9 +45,27 @@ services:
     networks:
       - app-network
 
+  redis:
+    container_name: laravel-redis
+    image: redis:6.0.6-alpine
+    hostname: redis
+    restart: always
+    command: redis-server --appendonly yes
+    volumes:
+      - redisdata:/data:rw
+    networks:
+      - app-network
+
+  queue:
+    <<: *laravel-app-template
+    restart: always
+    container_name: laravel-queue
+    command: php artisan queue:work --queue=default --tries=3
+
 networks:
   app-network:
     driver: bridge
 
 volumes:
   dbdata:
+  redisdata:
